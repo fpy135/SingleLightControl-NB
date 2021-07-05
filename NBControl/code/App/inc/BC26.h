@@ -23,7 +23,7 @@ typedef enum{
 
 void Clear_Buffer(void);//Çå¿Õ»º´æ	
 void OPEN_BC26(void);
-void BC26_Init(void);
+int BC26_Init(void);
 void BC26_PDPACT(void);
 void BC26_ConTCP(void);
 void BC26_CreateTCPSokcet(void);
@@ -39,6 +39,8 @@ typedef struct
 {
     uint8_t CSQ;
     uint8_t netstatus;//ÍøÂçÖ¸Ê¾µÆ
+	uint8_t rsrq;
+	uint8_t rsrp;
 } BC26Status;
 
 extern uint8_t ServerIP[4];
@@ -50,7 +52,7 @@ extern void Get_or_Set_NBStatus(uint8_t get_or_set, BC26Status *nbstatus);
 extern uint8_t MSG_NBReceiveDataFromISR(uint8_t *buf, uint16_t len);
 extern void NBDataProcess(void);
 extern void CreatNBTask(void);
-
+extern void OPEN_BC26_Power(void);
 #endif
 
 

@@ -79,7 +79,7 @@ extern uint8_t targetBrightness;
 extern uint8_t LedStatus;
 extern uint8_t ledshowFlag;
 
-extern void Get_TimeControl_Data(TimeControl_Type *timecontrol_data);
+extern uint8_t Get_TimeControl_Data(TimeControl_Type *timecontrol_data);
 extern void Write_TimeControl_Data(TimeControl_Type *timecontrol_data);
 extern void Write_LoraTimeControl_Data(LoraTimeControl_Type *loratimecontrol_data);
 extern void Get_LoraTimeControl_Data(LoraTimeControl_Type *loratimecontrol_data);

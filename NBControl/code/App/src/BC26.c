@@ -51,11 +51,15 @@ void Get_or_Set_NBStatus(uint8_t get_or_set, BC26Status *nbstatus)
 	{
 		nbstatus->CSQ = BC26_Status.CSQ;
 		nbstatus->netstatus = BC26_Status.netstatus;
+		nbstatus->rsrq = BC26_Status.rsrq;
+		nbstatus->rsrp = BC26_Status.rsrp;		
 	}
 	else
 	{
 		BC26_Status.CSQ = nbstatus->CSQ;
 		BC26_Status.netstatus = nbstatus->netstatus;
+		BC26_Status.rsrq = nbstatus->rsrq;
+		BC26_Status.rsrp = nbstatus->rsrp;
 	}
 	xSemaphoreGive(NB_STATUS_Mutex);
 }
@@ -142,34 +146,50 @@ uint8_t NBSendCMD(const char *cmd, uint16_t len, char *str, uint16_t Wtime)
 uint8_t GET_CSQ(void)
 {
 	uint8_t ret = 0;
-	uint8_t signal = 0;
+	uint8_t rssi = 99;
+	uint8_t rsrq = 255;
+	uint8_t rsrp = 255;
+	BC26Status nbstatus;
+	
 	ret = NBSendCMD("AT+CESQ\r\n",9,"+CESQ",300/100);//查看获取CSQ值
-	while(ret == 0)
+//	while(ret == 0)
+//	{
+//		ret = NBSendCMD("AT+CESQ\r\n",9,"+CESQ",300/100);//查看获取CSQ值
+//		
+//	}
+	Get_or_Set_NBStatus(0,&nbstatus);	//读出NB联网状态
+	if(ret == 1)
 	{
-		uint16_t p;
-		ret = NBSendCMD("AT+CESQ\r\n",9,"+CESQ",300/100);//查看获取CSQ值
-		if(ret == 1)
+		uint16_t p, q;
+		p = GetNStr(NBBuf, NBCount,':', 1);
+		if(p != 0xffff)
 		{
-			p = GetNStr(NBBuf, NBCount,':', 1);
+			Str2Num(&NBBuf[p+2], 2, (uint32_t *)&rssi);
+				nbstatus.CSQ = rssi;
+			p = GetNStr(NBBuf, NBCount,',', 4);
 			if(p != 0xffff)
 			{
-				if(Str2Num(&NBBuf[p+2], 2, (uint32_t *)&signal) != 0)
-				{
-					if(signal > 40){
-						signal = 99;
-					}
-					myprintf("\r\n信号质量: %d",signal);
-				}
+				q = GetNStr(NBBuf, NBCount,',', 5);
+				Str2Num(&NBBuf[p+1], q-p, (uint32_t *)&rsrq);
+				nbstatus.rsrq = rsrq;
+				Str2Num(&NBBuf[q+1], NBCount-1-q-8, (uint32_t *)&rsrp);
+				nbstatus.rsrp = rsrp;
+				
+				Get_or_Set_NBStatus(1,&nbstatus);	//写入NB联网状态
 			}
 		}
+		
+//		myprintf("\r\n信号强度：rssi:%d    rsrq:%d    rsrp:%d, ",rssi,rsrq,rsrp);
+
 	}
-	return signal;
+	return rssi;
 }
 
 uint8_t BC26_CheckSelf(void)
 {
 	uint8_t ret = 0;
-
+	
+	
 	ret = NBSendCMD("AT\r\n",4,"OK",300/100); 
 	ret = NBSendCMD("AT\r\n",4,"OK",300/100); 
 	ret = NBSendCMD("AT\r\n",4,"OK",300/100); 
@@ -177,15 +197,31 @@ uint8_t BC26_CheckSelf(void)
 	return ret;
 }
 
+void OPEN_BC26_Power(void)
+{
+	uint8_t ret = 0;
+//	if(ret==0)
+	{
+		NREST(1);
+		vTaskDelay(100);
+		NREST(0);
+		PWRKEY(1);//拉低
+		HAL_Delay(1000);
+		PWRKEY(0);//拉高正常开机
+	}
+}
+
 void OPEN_BC26(void)
 {
 	char *strx;
 	uint8_t ret = 0;
 
-	ret = NBSendCMD("AT\r\n",4,"OK",300/100); 
-	ret = NBSendCMD("AT\r\n",4,"OK",300/100); 
 //	if(ret==0)
 	{
+		NREST(1);
+		vTaskDelay(100);
+		NREST(0);
+		vTaskDelay(100);
 		PWRKEY(1);//拉低
 		vTaskDelay(1000);
 		PWRKEY(0);//拉高正常开机
@@ -193,7 +229,46 @@ void OPEN_BC26(void)
 	NBSendCMD("AT\r\n",4,"OK",300/100);   
 }
 
-void BC26_Init(void)
+
+int8_t Get_NTP_Time(void)
+{
+	uint8_t ret = 0;
+	uint16_t p;
+	 //使用域名为 ntp1.aliyun.com 的 NTP 服务器同步本地时间。
+	ret = NBSendCMD("AT+QNTP=1,\"ntp1.aliyun.com\"\r\n",29,"+QNTP:",3000/100); 
+	//ret = NBSendCMD("AT+QNTP=1,\"ntp1.aliyun.com\"\r\n",29,"OK",300/100); 
+    if(ret==0)
+    {
+		//ret = NBSendCMD("AT+QNTP=1,\"ntp1.aliyun.com\"\r\n",29,"+QNTP: 0",300/100); 
+		if(ret==0)
+			return -1;
+    }
+	p = StrFindString(NBBuf, NBCount,"+QNTP: 0", 8);
+	if(p != 0xffff)
+	{
+		char ZZ;
+		rtc_time_t rtc_time;
+		rtc_time.ui8Year = (NBBuf[p+10]-'0')*10+(NBBuf[p+11]-'0')+2000;
+		rtc_time.ui8Month = (NBBuf[p+13]-'0')*10+(NBBuf[p+14]-'0');
+		rtc_time.ui8DayOfMonth = (NBBuf[p+16]-'0')*10+(NBBuf[p+17]-'0');
+		
+		rtc_time.ui8Hour = (NBBuf[p+19]-'0')*10+(NBBuf[p+20]-'0');
+		rtc_time.ui8Minute = (NBBuf[p+22]-'0')*10+(NBBuf[p+23]-'0');
+		rtc_time.ui8Second = (NBBuf[p+25]-'0')*10+(NBBuf[p+26]-'0');
+		if((NBBuf[p+27]) == '-')
+			ZZ = -((NBBuf[p+28]-'0')*10+(NBBuf[p+29]-'0'));
+		if((NBBuf[p+27]) == '+')
+			ZZ = (NBBuf[p+28]-'0')*10+(NBBuf[p+29]-'0');
+		rtc_time.ui8Hour += ZZ/4;
+		rtc_time.ui8Minute += ZZ%4*15;
+		SetRTC(&rtc_time);
+		return 0;
+	}
+	return -1;
+}
+
+/*
+int BC26_Init(void)
 {
 	uint8_t ret = 0;
 	BC26Status nbstatus;
@@ -255,9 +330,112 @@ void BC26_Init(void)
 		}
 	}
 	Get_or_Set_NBStatus(1,&nbstatus);	//写入NB联网状态
+} */
+
+
+int BC26_Init(void)
+{
+	uint8_t ret = 0;
+	uint8_t recnt = 0;
+	uint8_t sim_cnt = 0;
+	BC26Status nbstatus;
+	
+	while(1)
+	{
+		recnt++;
+		if( recnt > 5 )
+		{
+			myprintf("AT Error!\r\n");
+			return -1;
+		}
+		vTaskDelay(1000);
+		
+		ret = NBSendCMD("AT\r\n",4,"OK",300/100); 
+		if(ret == 0)
+		{
+			//ret = NBSendCMD("AT\r\n",4,"OK",300/100); 
+			continue;
+		}
+		ret = NBSendCMD("ATE0\r\n",6,"OK",300/100); 	//关闭回显
+		if(ret == 0)
+		{
+			//ret = NBSendCMD("ATE0\r\n",6,"OK",300/100); 
+			continue;
+		}
+		NBSendCMD("ATI\r\n",5,"OK",300/100); 
+		ret = NBSendCMD("AT+CFUN=1\r\n",11,"OK",300/100); //开启射频
+		if(ret == 0)
+		{
+			//ret = NBSendCMD("AT+CFUN=1\r\n",11,"OK",300/100); //开启射频
+			continue;
+		}
+		ret = NBSendCMD("AT+QICLOSE=0\r\n",14,"OK",300/100); //关闭连接
+		
+//		while(1)
+//		{
+//			sim_cnt++;
+//			ret = NBSendCMD("AT+CPIN?\r\n",10,"+CPIN: READY",5000/100); //查询 USIM 卡的 PIN 码是否已解
+//			if(ret == 1)
+//				break;
+////			vTaskDelay(1000);
+////			if(sim_cnt > 2)
+////			{
+////				break;
+////			}
+//			
+//		}
+		ret = NBSendCMD("AT+CPIN?\r\n",10,"+CPIN: READY",5000/100); //查询 USIM 卡的 PIN 码是否已解
+		if(ret == 0)
+			continue;
+		ret = NBSendCMD("AT+CIMI\r\n",9,"460",300/100); //获取卡号，类似是否存在卡的意思，比较重要。
+		
+		if(ret == 0)
+		{
+			//ret = NBSendCMD("AT+CIMI\r\n",9,"460",300/100); //获取卡号，类似是否存在卡的意思，比较重要。
+			continue;
+		}
+		
+		ret = NBSendCMD("AT+QICFG=\"dataformat\",1,1\r\n",27,"OK",300/100);//配置发送，接收的数据格式为十六进制格式
+		if(ret == 0)
+		{
+			//ret = NBSendCMD("AT+QICFG=\"dataformat\",1,1\r\n",27,"OK",300/100);//配置发送，接收的数据格式为十六进制格式
+			continue;
+		}
+		
+		ret = NBSendCMD("AT+CGATT=1\r\n",12,"OK",300/100); //激活网络，PDP
+		ret = NBSendCMD("AT+CGATT?\r\n",11,"+CGATT: 1",300/100);//查询激活状态
+		if(ret == 0)//返回1,表明注网成功
+		{
+			//ret = NBSendCMD("AT+CGATT?\r\n",11,"+CGATT: 1",300/100);//查询激活状态
+			continue;
+		}
+		ret = NBSendCMD("AT+CEREG?\r\n",11,"+CEREG: 0,1",300/100);//查询EPS 网络注册状态
+		if(ret == 0)//返回1,表明注网成功
+		{
+			//ret = NBSendCMD("AT+CEREG?\r\n",11,"+CEREG: 0,1",300/100);//查询EPS 网络注册状态
+			continue;
+		}
+		ret = NBSendCMD("AT+CGPADDR?\r\n",13,"+CGPADDR: 1",300/100);//获取模块 IP 地址
+		if(ret == 0)
+		{
+			//ret = NBSendCMD("AT+CGPADDR?\r\n",13,"+CGPADDR: 1",300/100);//获取模块 IP 地址
+			continue;
+		}
+		nbstatus.CSQ = GET_CSQ();//查看获取CSQ值
+		if(nbstatus.CSQ == 99 || nbstatus.CSQ < 10)//说明扫网失败
+		{
+	//		while(1)
+			{
+				nbstatus.netstatus=OFFLINE;
+				myprintf("信号搜索失败，请查看原因!\r\n");
+				
+			}
+		}
+		Get_or_Set_NBStatus(1,&nbstatus);	//写入NB联网状态
+		
+		return 0;
+	}
 }
-
-
 
 
 void BC26_CreateTCPSokcet(void)//创建sokcet
@@ -297,7 +475,7 @@ void BC26_Close_Connect(uint8_t cipType)//关闭连接
 }
 
 
-uint8_t BC26_Connect_Platform(uint8_t cipType, uint8_t * serverIP, uint32_t serverPort)//连接平台,直吐模式
+int8_t BC26_Connect_Platform(uint8_t cipType, uint8_t * serverIP, uint32_t serverPort)//连接平台,直吐模式
 {
 	uint8_t ret = 0;
 	char cipStr[4] = {0};
@@ -322,9 +500,10 @@ uint8_t BC26_Connect_Platform(uint8_t cipType, uint8_t * serverIP, uint32_t serv
 		uint16_t p;
 		 //可查询连接状态信息
 		recnt++;
-		if(recnt>=10)
+		if(recnt>=5)
 		{
-			return 0;
+			myprintf("\r\n%s服务器连接失败", cipStr);
+			return -1;
 		}
 		p = StrFindString(NBBuf, NBCount,"+QIOPEN: 0,0", 12);
 		if(p!=0xffff)
@@ -332,41 +511,9 @@ uint8_t BC26_Connect_Platform(uint8_t cipType, uint8_t * serverIP, uint32_t serv
 		vTaskDelay(1000);
     }
 	myprintf("\r\n%s服务器连接成功", cipStr);
-	return 1;
+	return 0;
 }
 
-void Get_NTP_Time(void)
-{
-	uint8_t ret = 0;
-	uint16_t p;
-	 //使用域名为 ntp1.aliyun.com 的 NTP 服务器同步本地时间。
-	ret = NBSendCMD("AT+QNTP=1,\"ntp1.aliyun.com\"\r\n",29,"+QNTP: 0",300/100); 
-    while(ret==0)
-    {
-        ret = NBSendCMD("AT+QNTP=1,\"ntp1.aliyun.com\"\r\n",29,"+QNTP: 0",300/100); 
-    }
-	p = StrFindString(NBBuf, NBCount,"+QNTP: 0", 8);
-	if(p != 0xffff)
-	{
-		char ZZ;
-		rtc_time_t rtc_time;
-		rtc_time.ui8Year = (NBBuf[p+10]-'0')*10+(NBBuf[p+11]-'0')+2000;
-		rtc_time.ui8Month = (NBBuf[p+13]-'0')*10+(NBBuf[p+14]-'0');
-		rtc_time.ui8DayOfMonth = (NBBuf[p+16]-'0')*10+(NBBuf[p+17]-'0');
-		
-		rtc_time.ui8Hour = (NBBuf[p+19]-'0')*10+(NBBuf[p+20]-'0');
-		rtc_time.ui8Minute = (NBBuf[p+22]-'0')*10+(NBBuf[p+23]-'0');
-		rtc_time.ui8Second = (NBBuf[p+25]-'0')*10+(NBBuf[p+26]-'0');
-		if((NBBuf[p+27]) == '-')
-			ZZ = -((NBBuf[p+28]-'0')*10+(NBBuf[p+29]-'0'));
-		if((NBBuf[p+27]) == '+')
-			ZZ = (NBBuf[p+28]-'0')*10+(NBBuf[p+29]-'0');
-		rtc_time.ui8Hour += ZZ/4;
-		rtc_time.ui8Minute += ZZ%4*15;
-		SetRTC(&rtc_time);
-	}
-	
-}
 
 void BC26_Senddata(uint8_t *len,uint8_t *data)//字符串形式
 {
@@ -487,8 +634,10 @@ void NBDataProcess(void)
 		myprintf("\r\n NB长度错误:%d",NBRecviveLen);
 		return;
 	}
+#if 1
 	myprintf("\r\nAT接收, len: %d\r\n",NBRecviveLen);
 	PrintWrite(&platform_recvbuf[2], NBRecviveLen);
+#endif
 	s = pvPortMalloc(sizeof(uint8_t)*128);
 	if(xQueueReceive( NB_CMD_Queue, (void *)s, ( TickType_t ) 0) == pdPASS)	//获取消息队列
 	{
@@ -521,8 +670,8 @@ void NBDataProcess(void)
 	}
 	else
 	{
-		if((p = StrFindString(&platform_recvbuf[2], NBRecviveLen,(uint8_t *)"+QIURC: \"recv\"", strlen((const char *)"+QIURC: \"recv\""))) != 0xffff)	//接收数据
-		{
+		if((p = StrFindString(&platform_recvbuf[2], NBRecviveLen,(uint8_t *)"+QIURC: \"recv\"", strlen((const char *)"+QIURC: \"recv\""))) != 0xffff)
+		{	//接收数据
 			uint8_t str = 0x0d;
 			uint8_t len_num = 0;
 			uint32_t rev_len = 0;
@@ -533,8 +682,15 @@ void NBDataProcess(void)
 			Platform_Data_Process(NBBuf);
 
 		}
-		else if((p = StrFindString(&platform_recvbuf[2], NBRecviveLen,(uint8_t *)"+QIURC: \"closed\"", strlen((const char *)"+QIURC: \"closed\""))) != 0xffff)	//连接断开
-		{
+		else if((p = StrFindString(&platform_recvbuf[2], NBRecviveLen,(uint8_t *)"+QIURC: \"closed\"", strlen((const char *)"+QIURC: \"closed\""))) != 0xffff)
+		{	//连接断开
+			BC26Status nbstatus;
+			Get_or_Set_NBStatus(0,&nbstatus);
+			nbstatus.netstatus = OFFLINE;		//将网络状态设为离线
+			Get_or_Set_NBStatus(1,&nbstatus);	//获取NB联网状态
+		}
+		else if((p = StrFindString(&platform_recvbuf[2], NBRecviveLen,(uint8_t *)"+CPIN: NOT READY", strlen((const char *)"+CPIN: NOT READY"))) != 0xffff)
+		{	//sim卡丢失
 			BC26Status nbstatus;
 			Get_or_Set_NBStatus(0,&nbstatus);
 			nbstatus.netstatus = OFFLINE;		//将网络状态设为离线
@@ -565,38 +721,57 @@ void NBDataProcess(void)
 =====================================================*/
 void NB_Task(void *argument)
 {
-	uint8_t connect_status;
+	int8_t connect_status;
 	uint8_t lora_status_new;
 	uint8_t offline_cnt = 0;
 	uint8_t get_status_cnt = 0;
 	uint32_t tcp_heart_tick = 0;
+	static uint32_t get_time_tick = 0;
 	uint8_t TT = 0X00;
 	BC26Status nbstatus;
 	static uint16_t connet_cnt=0;
 	
 BC26Rest:
+	myprintf("\r\n NB复位");
 	OPEN_BC26();
-	BC26_Init();//对设备初始化
+	if( BC26_Init() < 0)//对设备初始化
+	{
+		goto BC26Rest;
+	}
 ReConnect:
     connect_status = BC26_Connect_Platform(TCP,ServerIP, ServerPort);//创建一个SOCKET连接
-	if(connect_status == 0)
+	if(connect_status < 0)
 	{
 		nbstatus.netstatus = OFFLINE;
 		connet_cnt++;
-		printf("\r\n第%d重新连接服务器",connet_cnt);
-		goto BC26Rest;
+		myprintf("\r\n第%d重新连接服务器",connet_cnt);
+		//if(connet_cnt >= 5)
+		{
+			goto BC26Rest;
+		}
 	}
 	nbstatus.netstatus = ONLINE;
 	Get_or_Set_NBStatus(1,&nbstatus);	//获取NB联网状态
-	Get_NTP_Time();
 	while(1)
 	{
+		GET_CSQ();		//信号强度
 		Get_or_Set_NBStatus(0,&nbstatus);	//获取NB联网状态
 		if(nbstatus.netstatus == OFFLINE)
 		{
 			BC26_Close_Connect(TCP);
 			goto ReConnect;
 		}
+		//定时同步时间
+		if((getRunTimeCounterValue() - get_time_tick)>=3600*24*3*1000 || get_time_tick == 0)
+		{
+			get_time_tick = getRunTimeCounterValue();
+			if(Get_NTP_Time() < 0)
+			{
+				get_time_tick = 0;
+			}
+		}
+		
+		
 		if(xQueueReceive(NB_SEND_Queue, (void *)&platform_sendbuf, ( TickType_t )1000) == pdPASS)
 		{
 			tcp_heart_tick = getRunTimeCounterValue();

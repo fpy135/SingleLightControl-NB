@@ -322,8 +322,8 @@ void Platform_Data_Process(uint8_t* msgdata)
 			case LedPwmCmd:
 			{
 				uint8_t tmp[2];
-				if(msgdata[5]>=99)	//限位
-					msgdata[5] = 99;
+				if(msgdata[5]>=100)	//限位
+					msgdata[5] = 100;
 				if(msgdata[5]>0)
 				{
 					tmp[0] = 1;
@@ -446,6 +446,8 @@ void Platform_Data_Process(uint8_t* msgdata)
 				myprintf("\r\n gprs recever:");
 			#elif USE_LORA_UART_TO_INTERNET
 				myprintf("\r\n Lora recever:");
+			#elif USE_NB_UART_TO_INTERNET
+				myprintf("\r\n NB recever:");
 			#endif
 			myprintf_buf_unic((uint8_t *)msgdata,10+msgdata[9]+2);
 		#endif
@@ -466,8 +468,8 @@ void Platform_Data_Process(uint8_t* msgdata)
 					uint8_t tmp[2];
 					if(msgdata[10] == 0x01)	//LED开关状态更新
 					{
-						if(msgdata[11]>99)	//限位
-							msgdata[11] = 99;
+						if(msgdata[11]>100)	//限位
+							msgdata[11] = 100;
 						Write_LED_Data(&msgdata[10],&msgdata[11]);	//LED亮度目标百分比调整
 						REL1_Write(REL_ON);	//打开继电器电源
 #if Platform_Data_Printf
@@ -476,8 +478,8 @@ void Platform_Data_Process(uint8_t* msgdata)
 					}
 					else if(msgdata[10] == 0x00)
 					{
-						if(msgdata[11]>99)	//限位
-							msgdata[11] = 99;
+						if(msgdata[11]>100)	//限位
+							msgdata[11] = 100;
 						Write_LED_Data(&msgdata[10],&msgdata[11]);	//LED亮度目标百分比调整
 						REL1_Write(REL_OFF);	//关闭继电器电源
 #if Platform_Data_Printf
@@ -499,20 +501,20 @@ void Platform_Data_Process(uint8_t* msgdata)
 					timecontrol_data.start_hour = msgdata[10];
 					timecontrol_data.start_min = msgdata[11];
 					timecontrol_data.phase1_time = (msgdata[12]<<8) | msgdata[13];
-					if(msgdata[14]>99)	//限位
-							msgdata[14] = 99;
+					if(msgdata[14]>100)	//限位
+							msgdata[14] = 100;
 					timecontrol_data.phase1_Pwm = msgdata[14];
 					timecontrol_data.phase2_time = (msgdata[15]<<8) | msgdata[16];
-					if(msgdata[17]>99)	//限位
-							msgdata[17] = 99;
+					if(msgdata[17]>100)	//限位
+							msgdata[17] = 100;
 					timecontrol_data.phase2_Pwm = msgdata[17];
 					timecontrol_data.phase3_time = (msgdata[18]<<8) | msgdata[19];
-					if(msgdata[20]>99)	//限位
-							msgdata[20] = 99;
+					if(msgdata[20]>100)	//限位
+							msgdata[20] = 100;
 					timecontrol_data.phase3_Pwm = msgdata[20];
 					timecontrol_data.phase4_time = (msgdata[21]<<8) | msgdata[22];
-					if(msgdata[23]>99)	//限位
-							msgdata[23] = 99;
+					if(msgdata[23]>100)	//限位
+							msgdata[23] = 100;
 					timecontrol_data.phase4_Pwm = msgdata[23];
 					Write_TimeControl_Data(&timecontrol_data);
 					//写入flash
@@ -682,8 +684,8 @@ void Heart_Data_Send(void)
 	TCP_PAYLOAD[11] = electricdata.Energy;
 	TCP_PAYLOAD[12] = !electricdata.RelayState;
 	TCP_PAYLOAD[13] = electricdata.LedPwm;
-	TCP_PAYLOAD[14] = 0xff;
-	TCP_PAYLOAD[15] = 0xff;
+	TCP_PAYLOAD[14] = (uint8_t)(HARDWARE_VERSION>>8);
+	TCP_PAYLOAD[15] = (uint8_t)HARDWARE_VERSION;
 	TCP_PAYLOAD[16] = (uint8_t)(SOFTWARE_VERSION>>8);
 	TCP_PAYLOAD[17] = (uint8_t)SOFTWARE_VERSION;
 	Platform_SendData(Sn,Device_TYPE,Device_ID,Heart_Cmd,18,(uint8_t *)TCP_PAYLOAD);

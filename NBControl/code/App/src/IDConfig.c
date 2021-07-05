@@ -139,7 +139,7 @@ void ReadID(void)
 			timecontrol_data.start_hour = 18;
 			timecontrol_data.start_min = 0;
 			timecontrol_data.phase1_time = 60*6;
-			timecontrol_data.phase1_Pwm = 99;
+			timecontrol_data.phase1_Pwm = 100;
 			timecontrol_data.phase2_time = 60*6;
 			timecontrol_data.phase2_Pwm = 50;
 			timecontrol_data.phase3_time = 0;
@@ -147,14 +147,14 @@ void ReadID(void)
 			timecontrol_data.phase4_time = 0;
 			timecontrol_data.phase4_Pwm = 0;
 		}
-		if(timecontrol_data.phase1_Pwm > 99)
-			timecontrol_data.phase1_Pwm = 99;
-		if(timecontrol_data.phase2_Pwm > 99)
-			timecontrol_data.phase2_Pwm = 99;
-		if(timecontrol_data.phase3_Pwm > 99)
-			timecontrol_data.phase3_Pwm = 99;
-		if(timecontrol_data.phase4_Pwm > 99)
-			timecontrol_data.phase4_Pwm = 99;
+		if(timecontrol_data.phase1_Pwm > 100)
+			timecontrol_data.phase1_Pwm = 100;
+		if(timecontrol_data.phase2_Pwm > 100)
+			timecontrol_data.phase2_Pwm = 100;
+		if(timecontrol_data.phase3_Pwm > 100)
+			timecontrol_data.phase3_Pwm = 100;
+		if(timecontrol_data.phase4_Pwm > 100)
+			timecontrol_data.phase4_Pwm = 100;
 		Write_TimeControl_Data(&timecontrol_data);
 		myprintf("\r\n产品类型:0x%2X,设备ID:%d",Device_TYPE,Device_ID);
 		myprintf("\r\n时间控制策略:开始时间:%02d:%02d,阶段一:time:%d  pwm:%d  阶段二:time:%d  pwm:%d  阶段三:time:%d  pwm:%d  阶段四:time:%d  pwm:%d\r\n",\

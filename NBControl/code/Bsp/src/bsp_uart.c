@@ -364,7 +364,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     /* Peripheral clock enable */
     __HAL_RCC_USART1_CLK_ENABLE();
 
-    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
     /**USART1 GPIO Configuration
     PA9     ------> USART1_TX
     PA10     ------> USART1_RX
@@ -379,7 +379,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(UART1_RX_GPIO_Port, &GPIO_InitStruct);
 
-    __HAL_AFIO_REMAP_USART1_DISABLE();
+    __HAL_AFIO_REMAP_USART1_ENABLE();
 
   /* USER CODE BEGIN USART1_MspInit 1 */
 	HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
@@ -556,7 +556,8 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
     PA9     ------> USART1_TX
     PA10                                                                                           ------> USART1_RX
     */
-    HAL_GPIO_DeInit(GPIOA, UART1_TX_Pin|UART1_RX_Pin);
+    HAL_GPIO_DeInit(UART1_TX_GPIO_Port, UART1_TX_Pin);
+	HAL_GPIO_DeInit(UART1_RX_GPIO_Port, UART1_RX_Pin);
     /* USART1 interrupt Deinit */
     HAL_NVIC_DisableIRQ(USART1_IRQn);
   /* USER CODE BEGIN USART1_MspDeInit 1 */
@@ -577,7 +578,8 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
     PA2     ------> USART2_TX
     PA3     ------> USART2_RX
     */
-    HAL_GPIO_DeInit(GPIOA, UART2_TX_Pin|UART2_RX_Pin);
+    HAL_GPIO_DeInit(UART2_TX_GPIO_Port, UART2_TX_Pin);
+	HAL_GPIO_DeInit(UART2_RX_GPIO_Port, UART2_RX_Pin);
 
     /* USART2 interrupt Deinit */
     HAL_NVIC_DisableIRQ(USART2_IRQn);
@@ -599,7 +601,8 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
     PB10     ------> USART3_TX
     PB11     ------> USART3_RX
     */
-    HAL_GPIO_DeInit(GPIOB, UART3_TX_Pin|UART3_RX_Pin);
+    HAL_GPIO_DeInit(UART3_TX_GPIO_Port, UART3_TX_Pin);
+	HAL_GPIO_DeInit(UART3_RX_GPIO_Port, UART3_RX_Pin);
 
     /* USART3 interrupt Deinit */
     HAL_NVIC_DisableIRQ(USART3_IRQn);

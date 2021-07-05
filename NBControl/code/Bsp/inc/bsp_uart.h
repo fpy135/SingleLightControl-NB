@@ -5,8 +5,8 @@
 
 
 /* USER CODE BEGIN Private defines */
-#define UART1_BAUD		115200		//用户串口
-#define UART2_BAUD		4800		//电量计串口
+#define UART1_BAUD		4800		//电量计串口
+#define UART2_BAUD		115200		//用户串口
 #define UART3_BAUD		115200		//NB串口
 #define UART4_BAUD		0
 #define UART5_BAUD		0
@@ -14,7 +14,7 @@
 #define UART7_BAUD		0
 #define UART8_BAUD		0
 
-#define PrintWrite		UART1Write
+#define PrintWrite		UART2Write
 
 #define	UART_TimeOUT_MAX   		10		//10ms超时
 /* USER CODE END Private defines */
@@ -24,7 +24,7 @@
 extern uint8_t aRxBuffer;				//接收中断缓冲
 
 #if UART1_BAUD
-#define Uart1RxBufferSize		256		//最大接收字节数
+#define Uart1RxBufferSize		128		//最大接收字节数
 extern UART_HandleTypeDef huart1;
 extern uint8_t Uart1RxBuffer[Uart1RxBufferSize];	//接收数据
 extern uint16_t Uart1_Rx_Cnt;			//接收缓冲计数
@@ -34,7 +34,7 @@ extern void UART1Write(uint8_t *buf, uint16_t len);
 #endif
 
 #if UART2_BAUD
-#define Uart2RxBufferSize		128		//最大接收字节数
+#define Uart2RxBufferSize		256		//最大接收字节数
 extern UART_HandleTypeDef huart2;
 extern uint8_t Uart2RxBuffer[Uart2RxBufferSize];	//接收数据
 extern uint16_t Uart2_Rx_Cnt;			//接收缓冲计数
@@ -45,7 +45,7 @@ extern void UART2Write(uint8_t *buf, uint16_t len);
 #endif
 
 #if UART3_BAUD
-#define Uart3RxBufferSize		128		//最大接收字节数
+#define Uart3RxBufferSize		256		//最大接收字节数
 extern UART_HandleTypeDef huart3;
 extern uint8_t Uart3RxBuffer[Uart3RxBufferSize];	//接收数据
 extern uint16_t Uart3_Rx_Cnt;			//接收缓冲计数

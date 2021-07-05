@@ -314,8 +314,8 @@ __weak void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
     PB6     ------> USART1_TX
     PB7     ------> USART1_RX
     */
-    HAL_GPIO_DeInit(GPIOB, UART1_TX_Pin|UART1_RX_Pin);
-
+    HAL_GPIO_DeInit(UART1_TX_GPIO_Port, UART1_TX_Pin);
+	HAL_GPIO_DeInit(UART1_RX_GPIO_Port, UART1_RX_Pin);
   /* USER CODE BEGIN USART1_MspDeInit 1 */
 
   /* USER CODE END USART1_MspDeInit 1 */
@@ -332,8 +332,8 @@ __weak void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
     PA2     ------> USART2_TX
     PA3     ------> USART2_RX
     */
-    HAL_GPIO_DeInit(GPIOA, UART2_TX_Pin|UART2_RX_Pin);
-
+    HAL_GPIO_DeInit(UART2_TX_GPIO_Port, UART2_TX_Pin);
+	HAL_GPIO_DeInit(UART2_RX_GPIO_Port, UART2_RX_Pin);
   /* USER CODE BEGIN USART2_MspDeInit 1 */
 
   /* USER CODE END USART2_MspDeInit 1 */
@@ -350,8 +350,8 @@ __weak void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
     PB10     ------> USART3_TX
     PB11     ------> USART3_RX
     */
-    HAL_GPIO_DeInit(GPIOB, UART3_TX_Pin|UART3_RX_Pin);
-
+    HAL_GPIO_DeInit(UART3_TX_GPIO_Port, UART3_TX_Pin);
+	HAL_GPIO_DeInit(UART3_RX_GPIO_Port, UART3_RX_Pin);
   /* USER CODE BEGIN USART3_MspDeInit 1 */
 
   /* USER CODE END USART3_MspDeInit 1 */

@@ -36,6 +36,16 @@ uint8_t ledshowFlag __no_init;		//演示模式
 extern void Get_ElectricData(CollectionData *electricdata);
 extern void Write_ElectricData(CollectionData *electricdata);
 
+uint8_t Get_Timecontrol_Unix_Flag = 0;
+
+void Write_TimeControl_flag(uint8_t flag)
+{
+	xSemaphoreTake (TimeControlMutex, portMAX_DELAY);
+	
+	Get_Timecontrol_Unix_Flag = flag;
+	xSemaphoreGive (TimeControlMutex);
+}
+
 void Get_ElectricData(CollectionData *electricdata)
 {
 	xSemaphoreTake (ElectricDataMutex, portMAX_DELAY);
@@ -79,11 +89,13 @@ void Write_TimeControl_Data(TimeControl_Type *timecontrol_data)
 	TimeControl_Data.phase3_time = timecontrol_data->phase3_time;
 	TimeControl_Data.phase4_Pwm = timecontrol_data->phase4_Pwm;
 	TimeControl_Data.phase4_time = timecontrol_data->phase4_time;
+	Get_Timecontrol_Unix_Flag = 0;
 	xSemaphoreGive (TimeControlMutex);
 }
 
-void Get_TimeControl_Data(TimeControl_Type *timecontrol_data)
+uint8_t Get_TimeControl_Data(TimeControl_Type *timecontrol_data)
 {
+	uint8_t flag = 0;
 	xSemaphoreTake (TimeControlMutex, portMAX_DELAY);
 	
 	timecontrol_data->start_hour = TimeControl_Data.start_hour;
@@ -96,7 +108,9 @@ void Get_TimeControl_Data(TimeControl_Type *timecontrol_data)
 	timecontrol_data->phase3_time = TimeControl_Data.phase3_time;
 	timecontrol_data->phase4_Pwm = TimeControl_Data.phase4_Pwm;
 	timecontrol_data->phase4_time = TimeControl_Data.phase4_time;
+	flag = Get_Timecontrol_Unix_Flag;
 	xSemaphoreGive (TimeControlMutex);
+	return flag;
 }
 
 void Write_LoraTimeControl_Data(LoraTimeControl_Type *loratimecontrol_data)
@@ -108,16 +122,16 @@ void Write_LoraTimeControl_Data(LoraTimeControl_Type *loratimecontrol_data)
 	LoraTimeControl_Data.led_status3 = loratimecontrol_data->led_status3;
 	LoraTimeControl_Data.led_status4 = loratimecontrol_data->led_status4;
 	LoraTimeControl_Data.led_status5 = loratimecontrol_data->led_status5;
-	if(loratimecontrol_data->phase1_Pwm1>99)
-		loratimecontrol_data->phase1_Pwm1 = 99;
-	if(loratimecontrol_data->phase1_Pwm2>99)
-		loratimecontrol_data->phase1_Pwm2 = 99;
-	if(loratimecontrol_data->phase1_Pwm3>99)
-		loratimecontrol_data->phase1_Pwm3 = 99;
-	if(loratimecontrol_data->phase1_Pwm4>99)
-		loratimecontrol_data->phase1_Pwm4 = 99;
-	if(loratimecontrol_data->phase1_Pwm5>99)
-		loratimecontrol_data->phase1_Pwm5 = 99;
+	if(loratimecontrol_data->phase1_Pwm1>100)
+		loratimecontrol_data->phase1_Pwm1 = 100;
+	if(loratimecontrol_data->phase1_Pwm2>100)
+		loratimecontrol_data->phase1_Pwm2 = 100;
+	if(loratimecontrol_data->phase1_Pwm3>100)
+		loratimecontrol_data->phase1_Pwm3 = 100;
+	if(loratimecontrol_data->phase1_Pwm4>100)
+		loratimecontrol_data->phase1_Pwm4 = 100;
+	if(loratimecontrol_data->phase1_Pwm5>100)
+		loratimecontrol_data->phase1_Pwm5 = 100;
 	LoraTimeControl_Data.phase1_Pwm1 = loratimecontrol_data->phase1_Pwm1;
 	LoraTimeControl_Data.phase1_Pwm2 = loratimecontrol_data->phase1_Pwm2;
 	LoraTimeControl_Data.phase1_Pwm3 = loratimecontrol_data->phase1_Pwm3;
@@ -190,13 +204,13 @@ void Write_LED_Data(uint8_t *ledstatus,uint8_t *ledpwm)
 	LedPwm = *ledpwm;
 	if(LedStatus)
 	{
-		LedStatus = REL_ON;
-		REL1_Write(LedStatus);	//打开继电器电源
+		LedStatus = 0;
+		REL1_Write(REL_ON);	//打开继电器电源
 	}
 	else
 	{
-		LedStatus = REL_OFF;
-		REL1_Write(LedStatus);	//关闭继电器电源
+		LedStatus = 1;
+		REL1_Write(REL_OFF);	//关闭继电器电源
 	}
 	taskEXIT_CRITICAL();
 }
@@ -353,8 +367,27 @@ void Led_Strategy(void)
 	if(rtc_time.ui8Year < 2020)		//未获取到时间，不执行时间管理
 		return;
 	rtc_unix_time = covBeijing2UnixTimeStp(&rtc_time);
-	if(get_timecontrol_unix_flag == 0)		//获取的一个时控的uinx时间戳
+//	if(get_timecontrol_unix_flag == 0)		//获取的一个时控的uinx时间戳
+//	{
+//		Get_TimeControl_Data(&timecontrol_data);
+//		temp_time.ui8Year = rtc_time.ui8Year;
+//		temp_time.ui8Month = rtc_time.ui8Month;
+//		temp_time.ui8DayOfMonth = rtc_time.ui8DayOfMonth;
+//		temp_time.ui8Hour = timecontrol_data.start_hour;
+//		temp_time.ui8Minute = timecontrol_data.start_min;
+//		temp_time.ui8Second = 0;
+//		timecontro_unix_time = covBeijing2UnixTimeStp(&temp_time);
+//		
+//	}
+	get_timecontrol_unix_flag = Get_TimeControl_Data(&timecontrol_data);
+	//每天时间到达第一个策略开始时间时更新时控策略的Unix时间戳
+	if((rtc_time.ui8Hour == (timecontrol_data.start_hour) && \
+		rtc_time.ui8Minute >= (timecontrol_data.start_min)) || \
+		rtc_time.ui8Hour > (timecontrol_data.start_hour) || \
+		get_timecontrol_unix_flag == 0)
 	{
+		get_timecontrol_unix_flag = 1;
+		Write_TimeControl_flag(get_timecontrol_unix_flag);
 		Get_TimeControl_Data(&timecontrol_data);
 		temp_time.ui8Year = rtc_time.ui8Year;
 		temp_time.ui8Month = rtc_time.ui8Month;
@@ -363,8 +396,8 @@ void Led_Strategy(void)
 		temp_time.ui8Minute = timecontrol_data.start_min;
 		temp_time.ui8Second = 0;
 		timecontro_unix_time = covBeijing2UnixTimeStp(&temp_time);
-		
 	}
+	
 	//如果时间超过了策略的初始时间
 	if(rtc_unix_time >= timecontro_unix_time)
 	{
@@ -453,15 +486,15 @@ void Led_Task(void * argument)
 	uint8_t led_show_mode[2];
 	uint8_t check_flag = 0;
 	
-	check_flag = CheckSelf();
+	check_flag = CheckSelf();	//自检程序
 	
     while(1)
     {
+		Get_or_Set_NBStatus(0,&nb_state);	//获取网络状态
 		if(check_flag)
 			HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
 		else
 			HAL_GPIO_WritePin(LED_B_GPIO_Port, LED_B_Pin,GPIO_PIN_SET);
-		Get_or_Set_NBStatus(0,&nb_state);
 		if(nb_state.netstatus != ONLINE)
 		{
 			HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin,GPIO_PIN_SET);

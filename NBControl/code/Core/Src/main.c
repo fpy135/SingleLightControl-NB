@@ -130,9 +130,10 @@ int main(void)
 	
 	HAL_TIM_Base_Start_IT(&htim3);
 //	OPEN_BC26();
+
 //	BL6526B_Init();
 	BL6523GX_Init();
-	cm_backtrace_init("NBControl", "1.0.1", "1.0.1");
+	cm_backtrace_init("NBControl", "1.0.2", "1.0.1");
 	QueSemMuxInit();
 	CreatStartTask();
 	vTaskStartScheduler();//启动调度，开始执行任务	
@@ -222,7 +223,7 @@ void QueSemMuxInit(void)
 		while(1);
 	}
 	
-	BL6523GX_RECEIVE_Queue = xQueueCreate( NB_RECEIVE_QUEUE_LENGTH, Uart2RxBufferSize );
+	BL6523GX_RECEIVE_Queue = xQueueCreate( NB_RECEIVE_QUEUE_LENGTH, Uart1RxBufferSize );
 	if(NULL == BL6523GX_RECEIVE_Queue)
 	{
 		_myprintf("\r\n BL6523GX_RECEIVE_Queue error");
@@ -233,6 +234,7 @@ void QueSemMuxInit(void)
 void Start_Task(void * argument)
 {
 	ReadID();
+	Device_ID = 8;
 	IDStatus = 1;
 	taskENTER_CRITICAL();           //进入临界区
 	if(IDStatus == 1)
@@ -245,8 +247,10 @@ void Start_Task(void * argument)
 	}
 	else if(IDStatus == 0)
 	{
-		CreatLedTask();
+		OPEN_BC26_Power();
 		CreatUartTask();
+		CreatLedTask();
+		CreatPlatformTask();
 	}
 	vTaskDelete(pvCreatedTask_Start);
     taskEXIT_CRITICAL();            //退出临界区

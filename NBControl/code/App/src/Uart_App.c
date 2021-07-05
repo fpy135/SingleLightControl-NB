@@ -98,15 +98,7 @@ void UartTimeOutCnt(void)
 }
 
 #if UART1_BAUD
-void Uart1DataPro(uint8_t *buf, uint16_t len)	//用户串口
-{
-	IDCofing(buf,  len);
-
-}
-#endif
-
-#if UART2_BAUD
-void Uart2DataPro(uint8_t *buf, uint16_t len)
+void Uart1DataPro(uint8_t *buf, uint16_t len)
 {
 	uint8_t tmp[4];
 	if(len>4)
@@ -116,6 +108,14 @@ void Uart2DataPro(uint8_t *buf, uint16_t len)
 	{
 		_myprintf("\r\nxQueueSend error, BL6523GX_RECEIVE_Queue");
 	}
+}
+#endif
+
+#if UART2_BAUD
+void Uart2DataPro(uint8_t *buf, uint16_t len)	//用户串口
+{
+	IDCofing(buf,  len);
+	
 }
 #endif
 
