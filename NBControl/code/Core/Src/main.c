@@ -172,6 +172,14 @@ void QueSemMuxInit(void)
 		while(1);
 	}
 	
+	AlarmBinary = xSemaphoreCreateBinary();		//AlarmBinary mutex	
+	if(NULL == AlarmBinary)
+	{
+		_myprintf("\r\n AlarmBinary error\r\n");
+		while(1);
+	}
+	xSemaphoreTake(AlarmBinary, 0);
+	
 	NB_CMD_Semaphore = xSemaphoreCreateBinary();
 	if(NULL == NB_CMD_Semaphore)
 	{
@@ -234,7 +242,7 @@ void QueSemMuxInit(void)
 void Start_Task(void * argument)
 {
 	ReadID();
-	Device_ID = 8;
+	Device_ID = 6;
 	IDStatus = 1;
 	taskENTER_CRITICAL();           //进入临界区
 	if(IDStatus == 1)

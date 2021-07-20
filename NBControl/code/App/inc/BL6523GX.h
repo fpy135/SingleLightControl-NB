@@ -3,7 +3,9 @@
 
 #include "main.h"
 
+#define BL6523GX_Printf			1
 #define BL6523Send				UART1Write
+
 
 #define BL6523GX_1_NRST_HIGH()  HAL_GPIO_WritePin(BL_NRST_GPIO_Port, BL_NRST_Pin, GPIO_PIN_SET)
 #define BL6523GX_1_NRST_LOW()   HAL_GPIO_WritePin(BL_NRST_GPIO_Port, BL_NRST_Pin, GPIO_PIN_RESET)

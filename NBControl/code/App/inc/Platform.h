@@ -52,6 +52,45 @@
 #define GPRS_SendData				UART3Write
 #endif
 
+#define LORA_DEV 	00	//no use 00 use 01
+#define NB_DEV 		02	//no use 00 use 02
+#define GPRS4G_DEV	00	//no use 00 use 03
+#define ETH_DEV 	00	//no use 00 use 04
+#define ELECTRIC1_DEV 	05	//no use 00 use 05
+#define ELECTRIC2_DEV 	00	//no use 00 use 06
+
+#define DEVNUM			2	//设备总数
+
+typedef struct AlarmData {
+	unsigned char 	devNum;
+#if LORA_DEV
+	unsigned char  	LoraNum;
+	unsigned char 	devLora;
+#endif
+#if NB_DEV
+	unsigned char  	NBNum;
+	unsigned char	devNB;
+#endif
+#if GPRS4G_DEV
+	unsigned char  	GPRS4GNum;
+	unsigned char	dev4G;
+#endif
+#if ETH_DEV
+	unsigned char  	EthNum;
+	unsigned char	devEth;
+#endif
+#if ELECTRIC1_DEV
+	unsigned char  	Electric1Num;
+	unsigned char	devElectric1;
+#endif
+#if ELECTRIC2_DEV
+	unsigned char  	Electric2Num;
+	unsigned char	devElectric2;
+#endif
+}AlarmData_Type;
+
+extern AlarmData_Type alarmData;
+
 //#define Herat_Rate					(5)		//单位：秒
 
 extern uint8_t MSG_GPRSReceiveDataFromISR(uint8_t *buf, uint16_t len);

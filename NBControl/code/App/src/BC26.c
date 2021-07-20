@@ -26,10 +26,8 @@ char *strx,*extstrx;
 uint8_t NBBufTmp[NBBuf_Size];
 uint16_t NBRecvCount = 0;
 
-//uint8_t	ServerIP[4] ={106,54,98,19};
-//uint32_t ServerPort = 44233;
-//uint8_t	ServerIP[4] ={47,98,223,38};
-//uint32_t ServerPort = 9000;
+//uint8_t	ServerIP[4] ={103,46,128,53};
+//uint32_t ServerPort = 25377;
 
 uint8_t	ServerIP[4] ={121,199,69,67};
 uint32_t ServerPort = 9001;
@@ -183,6 +181,28 @@ uint8_t GET_CSQ(void)
 
 	}
 	return rssi;
+}
+
+/*=====================================================
+ * 函数功能: 	检测GPRS网络注册
+ * 输入参数:	
+ * 输出参数: 	
+ * 返    回:	
+=====================================================*/
+uint8_t CheckCGREG(uint8_t *buf, uint16_t len)
+{
+	uint16_t p;
+	
+	p = StrFindString(buf, len, (uint8_t *)"+CGREG", 5);
+	if(p != 0xffff)
+	{
+		if((buf[p+10] == '1')|| (buf[p+10] == '5'))
+		{
+			return 0;
+		}
+	}
+	return 1;
+	
 }
 
 uint8_t BC26_CheckSelf(void)
@@ -395,15 +415,19 @@ int BC26_Init(void)
 			continue;
 		}
 		
-		ret = NBSendCMD("AT+QICFG=\"dataformat\",1,1\r\n",27,"OK",300/100);//配置发送，接收的数据格式为十六进制格式
-		if(ret == 0)
+		//GPRS 注册
+		if(NBSendCMD("AT+CGREG?\r\n", 11, "OK", 300/100) == 0)
 		{
-			//ret = NBSendCMD("AT+QICFG=\"dataformat\",1,1\r\n",27,"OK",300/100);//配置发送，接收的数据格式为十六进制格式
+			continue;
+		}
+		if(CheckCGREG(NBBuf,NBCount)){	
+			myprintf("\r\nAT+CGREG bak not 1 or 5. recnt: %d", recnt);
+			vTaskDelay(3000);
 			continue;
 		}
 		
 		ret = NBSendCMD("AT+CGATT=1\r\n",12,"OK",300/100); //激活网络，PDP
-		ret = NBSendCMD("AT+CGATT?\r\n",11,"+CGATT: 1",300/100);//查询激活状态
+		ret = NBSendCMD("AT+CGATT?\r\n",11,"+CGATT: 1",5000/100);//查询激活状态
 		if(ret == 0)//返回1,表明注网成功
 		{
 			//ret = NBSendCMD("AT+CGATT?\r\n",11,"+CGATT: 1",300/100);//查询激活状态
@@ -421,6 +445,14 @@ int BC26_Init(void)
 			//ret = NBSendCMD("AT+CGPADDR?\r\n",13,"+CGPADDR: 1",300/100);//获取模块 IP 地址
 			continue;
 		}
+		
+		ret = NBSendCMD("AT+QICFG=\"dataformat\",1,1\r\n",27,"OK",300/100);//配置发送，接收的数据格式为十六进制格式
+		if(ret == 0)
+		{
+			//ret = NBSendCMD("AT+QICFG=\"dataformat\",1,1\r\n",27,"OK",300/100);//配置发送，接收的数据格式为十六进制格式
+			continue;
+		}
+		
 		nbstatus.CSQ = GET_CSQ();//查看获取CSQ值
 		if(nbstatus.CSQ == 99 || nbstatus.CSQ < 10)//说明扫网失败
 		{
@@ -772,9 +804,9 @@ ReConnect:
 		}
 		
 		
-		if(xQueueReceive(NB_SEND_Queue, (void *)&platform_sendbuf, ( TickType_t )1000) == pdPASS)
+		if(xQueueReceive(NB_SEND_Queue, (void *)&platform_sendbuf, ( TickType_t )1000) == pdPASS)			//nb存在信息要发送的信息
 		{
-			tcp_heart_tick = getRunTimeCounterValue();
+			tcp_heart_tick = getRunTimeCounterValue();			//将tcp保活心跳延后
 			connect_status = BC26_Senddatahex((uint8_t *)platform_sendbuf, 10+platform_sendbuf[9]+2);		//10为负载以前的固定数据的数据长度+负载数据长度+crc
 			if(connect_status == 0)
 			{
@@ -783,7 +815,7 @@ ReConnect:
 				{
 					offline_cnt = 0;
 					nbstatus.netstatus = OFFLINE;
-					Get_or_Set_NBStatus(1,&nbstatus);	//获取NB联网状态
+					Get_or_Set_NBStatus(1,&nbstatus);	//写入NB联网状态
 				}
 			}
 			else
@@ -803,7 +835,7 @@ ReConnect:
 					{
 						offline_cnt = 0;
 						nbstatus.netstatus = OFFLINE;
-						Get_or_Set_NBStatus(1,&nbstatus);	//获取NB联网状态
+						Get_or_Set_NBStatus(1,&nbstatus);	//写入NB联网状态
 					}
 				}
 				else

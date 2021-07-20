@@ -35,6 +35,10 @@ typedef enum{
 	FindEleBack_Cmd		= 0xB4,
 	FindEnvironment_Cmd	= 0xA5,
 	FindEnvironBack_Cmd	= 0xB5,
+	
+	Alarm_Cmd			= 0xAA,
+	AlarmBack_Cmd		= 0xBA,
+	
 	RemoteUpdata_Cmd	= 0xAf,
 	RemoteUpdataBack_Cmd= 0xBf,
 }ProtocolCmd_Type;

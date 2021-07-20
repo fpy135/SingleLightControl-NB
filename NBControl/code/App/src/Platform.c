@@ -20,6 +20,11 @@ QueueHandle_t GPRS_RECEIVE_Queue;
 uint8_t platform_recvbuf[PLATFORM_BUFF_SIZE];					//定义数据处理Buff大小为300（为100也无所谓，只要大于等于100就好）
 uint8_t platform_sendbuf[PLATFORM_BUFF_SIZE];
 
+SemaphoreHandle_t AlarmBinary;	//报警信号量
+AlarmData_Type alarmData;
+AlarmData_Type alarmDataLast = {0xff};
+uint32_t Alarm_Tick = 0;
+
 uint8_t Updata_Falg  =0;
 
 static uint32_t get_time_tick = 0;
@@ -564,6 +569,10 @@ void Platform_Data_Process(uint8_t* msgdata)
 				{
 					Heart_Data_Send();		//回复心跳
 				}
+				else if(msgdata[8] == AlarmBack_Cmd)		//报警返回命令字
+				{
+					
+				}
 				else if(msgdata[8] == RemoteUpdata_Cmd)		//查询环境数据命令字
 				{
 					Platform_SendData(Sn,Device_TYPE,Device_ID,RemoteUpdataBack_Cmd,0,msgdata);	//数据回传
@@ -692,6 +701,43 @@ void Heart_Data_Send(void)
 #endif
 }
 
+void Alarm_Data_Set(void)
+{
+	alarmData.devNum = DEVNUM;
+#if LORA_DEV
+	alarmData.LoraNum = LORA_DEV;
+	alarmData.devLora = 0x07;
+#endif
+#if NB_DEV
+	alarmData.NBNum = NB_DEV;
+	alarmData.devNB = 0x00;
+#endif
+#if GPRS4G_DEV
+	alarmData.GPRS4GNum = GPRS4G_DEV;
+	alarmData.dev4G = 0x07;
+#endif
+#if ETH_DEV
+	alarmData.EthNum = ETH_DEV;
+	alarmData.devEth = 0X00;
+#endif
+#if ELECTRIC1_DEV
+	CollectionData electricdata1;
+	Get_ElectricData(&electricdata1);
+	alarmData.Electric1Num = ELECTRIC1_DEV;
+	alarmData.devElectric1 = electricdata1.Bl6526bState;
+#endif
+#if ELECTRIC2_DEV
+	CollectionData electricdata2;
+	Get_ElectricData(2, &electricdata2);
+	alarmData.Electric2Num = ELECTRIC2_DEV;
+	alarmData.devElectric2 = electricdata2.Bl6526bState;
+#endif
+}
+void Alarm_Data_Send(void)
+{
+	Platform_SendData(Sn,Device_TYPE,Device_ID,Alarm_Cmd,sizeof(alarmData),(uint8_t *)&alarmData);
+}
+
 extern uint8_t ETH_Link_flag;
 
 void Platform_Task(void *argument)
@@ -699,6 +745,8 @@ void Platform_Task(void *argument)
 	uint8_t * link_state;
 	uint8_t lora_state = 0;
 	BC26Status nbstatus;
+	static uint8_t link_state_old = ONLINE;
+
 	_myprintf("\r\nStart Platform_Task");
 	
 #if USE_ETH_TO_INTERNET
@@ -773,7 +821,31 @@ void Platform_Task(void *argument)
 					Heart_Data_Send();
 				}
 			}
+			
+			if(xSemaphoreTake(AlarmBinary, 0) == pdTRUE)
+			{
+				Alarm_Data_Set();
+				if(StrComplate((uint8_t *)&alarmDataLast,(uint8_t *)&alarmData,sizeof(alarmData)) == 0) {	//如果数据不同则立即报警
+					alarmDataLast = alarmData;
+					Alarm_Tick = HAL_GetTick();
+					myprintf("产生报警信号\r\n");
+					Alarm_Data_Send();
+				} else  {
+					if((HAL_GetTick() - Alarm_Tick)>=10*60*1000) {
+						myprintf("产生报警信号\r\n");
+						Alarm_Tick = HAL_GetTick();
+						Alarm_Data_Send();
+					}
+				}
+			}
+			
 		}
+		if(link_state_old == OFFLINE && nbstatus.netstatus == ONLINE)	//socket重新连接需立刻发一包心跳
+		{
+			Heart_Data_Send();
+//				link_state_old = Tcp_Connect_Flag;
+		}
+		link_state_old = nbstatus.netstatus;
 #endif
 
 		vTaskDelay(100);

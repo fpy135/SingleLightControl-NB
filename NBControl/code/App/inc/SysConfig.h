@@ -80,6 +80,8 @@ extern SemaphoreHandle_t ElectricDataMutex; //ElectricDataMutex
 extern SemaphoreHandle_t TcpMutex; 
 extern SemaphoreHandle_t Lora_CMD_Mutex;
 
+extern SemaphoreHandle_t AlarmBinary;	//±¨¾¯ÐÅºÅÁ¿
+
 extern SemaphoreHandle_t Lora_CMD_Semaphore;
 extern SemaphoreHandle_t Lora_ACK_Semaphore;
 extern SemaphoreHandle_t Lora_STATUS_Mutex;

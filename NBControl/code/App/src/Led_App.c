@@ -192,7 +192,7 @@ void Get_LoraTimeControl_Data(LoraTimeControl_Type *loratimecontrol_data)
 void Get_LED_Data(uint8_t *ledstatus,uint8_t *ledpwm)
 {
 	taskENTER_CRITICAL();
-	*ledstatus = LedStatus;
+	*ledstatus = !LedStatus;
 	*ledpwm = LedPwm;
 	taskEXIT_CRITICAL();
 }
@@ -488,33 +488,64 @@ void Led_Task(void * argument)
 	
 	check_flag = CheckSelf();	//自检程序
 	
+	if(IDStatus == 0)			//未预制ID
+	{
+		while(1)
+		{
+			if(check_flag)
+				HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
+			else
+			{
+				HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin,GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(LED_B_GPIO_Port, LED_B_Pin,GPIO_PIN_SET);
+				
+			}
+			vTaskDelay(100);
+		}
+	}
+	
     while(1)
     {
 		Get_or_Set_NBStatus(0,&nb_state);	//获取网络状态
 		if(check_flag)
 			HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
 		else
+		{
 			HAL_GPIO_WritePin(LED_B_GPIO_Port, LED_B_Pin,GPIO_PIN_SET);
-		if(nb_state.netstatus != ONLINE)
-		{
-			HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin,GPIO_PIN_SET);
-			HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
-		}
-		else if(time_prinf_cnt%10 == 0)			//1s
-		{
-			HAL_GPIO_WritePin(LED_R_GPIO_Port, LED_R_Pin,GPIO_PIN_SET);
-			HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
+			if(nb_state.netstatus != ONLINE)
+			{
+				HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin,GPIO_PIN_SET);
+				HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
+			}
+			else if(time_prinf_cnt%10 == 0)			//1s
+			{
+				HAL_GPIO_WritePin(LED_R_GPIO_Port, LED_R_Pin,GPIO_PIN_SET);
+				HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
+			}
 		}
 		if(time_prinf_cnt %50 ==0 || time_prinf_cnt == 0)//每5秒打印一次时间
 		{
 			rtc_time_t rtc_time;
+			uint8_t led1,pwm1;
 			
+			Get_LED_Data(&led1,&pwm1);
 //			time_prinf_cnt = 0;
 			GetRTC(&rtc_time);
 			myprintf("\r\n%02d-%02d-%02d  %02d:%02d:%02d ", rtc_time.ui8Year, rtc_time.ui8Month,\
 			rtc_time.ui8DayOfMonth, rtc_time.ui8Hour, rtc_time.ui8Minute, rtc_time.ui8Second);
+			Get_ElectricData(&electricdata);
 			BL6523GX_ProcessTask(&electricdata);				/*电能计量芯片读取函数*/
+			
+			if(led1 == 1 && pwm1>=7 && (electricdata.Voltage==0 || electricdata.Current==0)) {
+				electricdata.Bl6526bState |= 0x08;
+			} else {
+				electricdata.Bl6526bState &= ~0x08;
+			}
 			Write_ElectricData(&electricdata);
+			if(electricdata.Bl6526bState)
+			{
+				xSemaphoreGive(AlarmBinary);			//报警
+			}
 		}
 		
 		time_prinf_cnt++;

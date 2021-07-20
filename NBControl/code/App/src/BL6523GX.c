@@ -78,17 +78,25 @@ void BL6523GX_WriteData(uint8_t reg_addr,uint8_t byte1,uint8_t byte2,uint8_t byt
 *******************************************************************************/
 void Bl6523GXState_Process(BL6523GXStruct *bl6526bdata,CollectionData *electricdata)
 {
-    if (bl6526bdata->status & 0x28)
+    if (bl6526bdata->gain != 0x000033)
     {
-        electricdata->Bl6526bState = 0X04;
+        electricdata->Bl6526bState |= 0X01;
+		#if BL6523GX_Printf
+			myprintf("\n******************BL6523GX通讯异常********************\n");
+		#endif
+		return;
     }
-    else if (bl6526bdata->status & 0x08)
+//    if (bl6526bdata->status & 0x28)
+//    {
+//        electricdata->Bl6526bState = 0X04;
+//    }
+//    else if (bl6526bdata->status & 0x08)
+//    {
+//        electricdata->Bl6526bState = 0X02;
+//    }
+	if (bl6526bdata->status & 0x20)
     {
-        electricdata->Bl6526bState = 0X02;
-    }
-	else if (bl6526bdata->status & 0x20)
-    {
-        electricdata->Bl6526bState = 0X01;
+        electricdata->Bl6526bState |= 0X02;
     }
     else
     {
@@ -98,19 +106,29 @@ void Bl6523GXState_Process(BL6523GXStruct *bl6526bdata,CollectionData *electricd
     switch(electricdata->Bl6526bState)
     {
     case 0x00:		//正常
-        myprintf("\n******************BL6523GX正常********************\n");;
+		#if BL6523GX_Printf
+        myprintf("\n******************BL6523GX正常********************\n");
+		#endif
+
         break;
 
-    case 0x01:		//过压
+    case 0x02:		//过压
+		#if BL6523GX_Printf
         myprintf("\n******************BL6523GX电流过压********************\n");
+		#endif
         break;
 
-    case 0x02:		//过流
+    case 0x04:		//过流
+		#if BL6523GX_Printf
         myprintf("\n******************BL6523GX电流过流********************\n");
+		#endif
         break;
 
-    case 0x04:		//同时过压过流
+    case 0x08:		//同时过压过流
+		#if BL6523GX_Printf
         myprintf("\n******************BL6523GX电流过压过流********************\n");
+		#endif
+
         break;
     }
 
@@ -148,7 +166,7 @@ void BL6523GX_Init(void)
 	HAL_Delay(1);
     BL6523GX_WriteData((BL6523G_MASK ),0x28,0x00,0x00);		//12bits 中断屏蔽寄存器，过压，过流中断，
 	HAL_Delay(1);
-    BL6523GX_WriteData((BL6523G_V_PKLVL ),0xEA,0x03,0x00);	//12bits 240V左右会过压
+//    BL6523GX_WriteData((BL6523G_V_PKLVL ),0xEA,0x03,0x00);	//12bits 240V左右会过压
 	HAL_Delay(1);
 //    BL6523GX_WriteData((BL6523G_I_PKLVL ),0xEA,0x03,0x00);	//12bits 5A电流左右会过流
 	BL6523GX_WriteData((BL6523G_WRPROT ),0x00,0x00,0x00);	// 8bits 开启写保护
@@ -256,6 +274,7 @@ void BL6523GX_ProcessTask(CollectionData *electricdata)
 
     electricdata->Energy = (uint32_t)(e * 100);
 
+#if BL6523GX_Printf
 
     myprintf("--------------------------------------\r\n");			/*分割*/
     myprintf("BL6523G1_STATUS = 0X%02X\r\n", bl6526bdata.status);
@@ -271,6 +290,8 @@ void BL6523GX_ProcessTask(CollectionData *electricdata)
     myprintf("V1 = %d mV,I1 = %d mA,P = %d mW\n",electricdata->Voltage,electricdata->Current,(uint32_t)(pb * 1000));
 		myprintf("V = %.1fV,A = %.2fA,P = %.2fW,E = %f° \n",v,ib,pb,e/100);
     myprintf("--------------------------------------\r\n");			/*分割*/
+#endif
+
 	Bl6523GXState_Process(&bl6526bdata,electricdata);								/*设置电量采集芯片状态(正常,过流,过压,过零)*/
 
 }
